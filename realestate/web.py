@@ -8,6 +8,8 @@ from __future__ import annotations
 import argparse
 import io
 import re
+import threading
+import webbrowser
 from dataclasses import asdict
 from datetime import date
 
@@ -100,8 +102,12 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="realestate-web", description="Run the RealEstate web interface.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--open", action="store_true", help="open the page in your browser once the server is up")
     args = parser.parse_args(argv)
-    print(f"RealEstate is running: open http://{args.host}:{args.port} in your browser (Ctrl+C to stop)")
+    url = f"http://{args.host}:{args.port}"
+    print(f"RealEstate is running: open {url} in your browser (Ctrl+C to stop)")
+    if args.open:
+        threading.Timer(1.0, webbrowser.open, [url]).start()
     app.run(host=args.host, port=args.port)
 
 
