@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ..info import DealInfo, format_date, parse_date, parse_datetime
 from ..pdf import Field
-from . import FormResult, Missing
+from . import FormResult, Input, Missing
 
 NAME = "BCFSA Disclosure of Remuneration"
 TEMPLATE = str(Path(__file__).resolve().parent.parent / "templates" / "bcfsa_disclosure_of_remuneration.pdf")
@@ -43,6 +43,31 @@ FIELDS = [
     Field("d_ack_place", "Part D: place of acknowledgement", 338.5, 455, 699.0),
     Field("d_ack_date", "Part D: date of acknowledgement", 472.5, 574.5, 699.0),
 ]
+
+# What the form asks for, in the order a person would fill it in.
+INPUTS = [
+    Input("buyer_names", "Buyer name(s)", "Client & property",
+          "full legal names of every buyer, e.g. \"Mykyta Hryb and Raj Sharma\""),
+    Input("property_address", "Property address", "Client & property",
+          "unit, street, city, e.g. \"#406 - 12160 80 Avenue, Surrey, BC\""),
+    Input("licensee_name", "Licensee name", "Your details", "your name as it appears on your BCFSA licence"),
+    Input("brokerage", "Brokerage", "Your details", "your related brokerage, e.g. \"Sample Realty Ltd.\""),
+    Input("place", "Place of disclosure", "Your details", "city where the form is presented, e.g. \"Surrey, BC\""),
+    Input("agency", "Agency", "Commission", "acting for one party, or as dual agent", required=False,
+          choices=("one party", "dual")),
+    Input("commission", "Commission", "Commission",
+          "amount or method, e.g. \"3.22% on the first $100,000 and 1.15% on the balance\""),
+    Input("commission_paid_by", "Commission paid by", "Commission", "who pays it, e.g. the listing brokerage's name"),
+    Input("disclosure_date", "Disclosure date", "Commission", "defaults to today", required=False, kind="date"),
+    Input("referral_remuneration", "Referral fee", "Referral fees (Part C)", "form or amount, only if you receive one",
+          required=False),
+    Input("referral_paid_by", "Referral fee paid by", "Referral fees (Part C)", "who pays the referral fee", required=False),
+    Input("referred_client_to", "Client referred to", "Referral fees (Part C)",
+          "who you referred the client to", required=False),
+    Input("referred_to_client", "Referred to client", "Referral fees (Part C)",
+          "who you referred to the client", required=False),
+]
+INPUT_BY_KEY = {i.key: i for i in INPUTS}
 
 # Information that is useful for the deal but has no place on this form.
 NOT_ON_THIS_FORM = {
@@ -82,30 +107,35 @@ def build(info: DealInfo, today: date) -> FormResult:
     result = FormResult(NAME, TEMPLATE, FIELDS)
     v = result.values
 
-    def need(key: str, label: str, hint: str) -> str | None:
+    def need(key: str) -> str | None:
         value = info.get(key)
         if value is None:
-            result.missing.append(Missing(key, label, hint))
+            spec = INPUT_BY_KEY[key]
+            result.missing.append(Missing(key, spec.label, spec.hint))
         return value
 
+    def missing(key: str) -> None:
+        spec = INPUT_BY_KEY[key]
+        result.missing.append(Missing(key, spec.label, spec.hint))
+
     # Part A
-    if buyers := need("buyer_names", "Buyer name(s)", "full legal names of every buyer, e.g. \"Mykyta Hryb and Raj Sharma\""):
+    if buyers := need("buyer_names"):
         v["client_name"] = buyers
         names = [n.strip() for n in re.split(r",|\band\b|&", buyers) if n.strip()]
         if any(len(n.split()) < 2 for n in names):
             result.warnings.append(
                 f"Buyer name \"{buyers}\" looks like first names only. Use full legal names as they will appear on the contract."
             )
-    if address := need("property_address", "Property address", "unit, street, city, e.g. \"#406 - 12160 80 Avenue, Surrey, BC\""):
+    if address := need("property_address"):
         v["property_address"] = address
         if not re.search(r"[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d", address):
             result.warnings.append("Property address has no postal code. It is not required on this form, but worth adding.")
 
     # Part B
-    licensee = need("licensee_name", "Licensee name", "your name as it appears on your BCFSA licence")
-    brokerage = need("brokerage", "Brokerage", "your related brokerage, e.g. \"Sample Realty Ltd.\"")
-    commission = need("commission", "Commission", "amount or method, e.g. \"3.22% on the first $100,000 and 1.15% on the balance\"")
-    paid_by = need("commission_paid_by", "Commission paid by", "who pays it, e.g. the listing brokerage's name")
+    licensee = need("licensee_name")
+    brokerage = need("brokerage")
+    commission = need("commission")
+    paid_by = need("commission_paid_by")
 
     kind = agency_kind(info.get("agency"))
     if kind is None:
@@ -130,12 +160,12 @@ def build(info: DealInfo, today: date) -> FormResult:
         if brokerage:
             v["c_brokerage"] = brokerage
         if not info.get("referral_paid_by"):
-            result.missing.append(Missing("referral_paid_by", "Referral fee paid by", "who pays the referral fee"))
+            missing("referral_paid_by")
         if not (info.get("referred_client_to") or info.get("referred_to_client")):
-            result.missing.append(Missing("referred_client_to", "Referral", "who the client was referred to (or who was referred to the client)"))
+            missing("referred_client_to")
 
     # Part D
-    place = need("place", "Place of disclosure", "city where the form is presented, e.g. \"Surrey, BC\"")
+    place = need("place")
     when = today
     if raw := info.get("disclosure_date"):
         parsed = parse_date(raw, today)

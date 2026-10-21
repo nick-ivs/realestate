@@ -14,7 +14,21 @@ Supported forms:
 pip install -e ".[test]"
 ```
 
-## Use
+## Web interface
+
+```sh
+python -m realestate.web
+```
+
+Then open http://127.0.0.1:8000 in your browser.
+
+1. Paste the offer information and press **Read information** (or Ctrl+Enter).
+2. Check the fields it found. Missing ones are marked in red; edit anything you like.
+   Your own details (licensee, brokerage, commission, place) are remembered in
+   this browser, so you enter them once.
+3. The preview on the right updates as you type. **Download PDF** saves the filled form.
+
+## Command line
 
 Write the offer the way you would in a message:
 

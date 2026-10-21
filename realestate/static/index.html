@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RealEstate Forms</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%231f3a8a'/><path d='M4 8.5 8 5l4 3.5V12H4z' fill='white'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --text: #16191f; --muted: #5f6673; --border: #dde1e7;
+    --accent: #1f3a8a; --accent-text: #ffffff; --accent-soft: #e8edfb;
+    --missing: #b42318; --missing-soft: #fdecea; --warn: #8a5a00; --warn-soft: #fff4dc;
+    --ok: #12693f; --ok-soft: #e4f4ea; --input-bg: #ffffff; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111318; --surface: #1a1d24; --text: #e8eaee; --muted: #9aa1ad; --border: #2c313b;
+      --accent: #7c9cff; --accent-text: #0d1020; --accent-soft: #232b45;
+      --missing: #ff8a7a; --missing-soft: #3a1f1d; --warn: #f2c063; --warn-soft: #362b17;
+      --ok: #6fd39b; --ok-soft: #173126; --input-bg: #14161c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111318; --surface: #1a1d24; --text: #e8eaee; --muted: #9aa1ad; --border: #2c313b;
+    --accent: #7c9cff; --accent-text: #0d1020; --accent-soft: #232b45;
+    --missing: #ff8a7a; --missing-soft: #3a1f1d; --warn: #f2c063; --warn-soft: #362b17;
+    --ok: #6fd39b; --ok-soft: #173126; --input-bg: #14161c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 Inter, system-ui, sans-serif; }
+  header { padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 17px; font-weight: 600; }
+  header span { color: var(--muted); }
+  main { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 24px; padding: 24px; max-width: 1500px; margin: 0 auto; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+  .card p.sub { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+  textarea, input, select { width: 100%; font: inherit; color: var(--text); background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  textarea { min-height: 190px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 500; border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button:disabled { opacity: .55; cursor: default; }
+  .link { background: none; border: none; color: var(--accent); padding: 0; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .status { border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px; font-weight: 500; }
+  .status.missing { background: var(--missing-soft); color: var(--missing); }
+  .status.ready { background: var(--ok-soft); color: var(--ok); }
+  fieldset { border: none; padding: 0; margin: 0 0 14px; }
+  legend, summary { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 8px; padding: 0; }
+  summary { cursor: pointer; margin-bottom: 10px; }
+  .field { margin-bottom: 10px; }
+  .field label { display: flex; justify-content: space-between; gap: 8px; font-weight: 500; font-size: 13px; margin-bottom: 4px; }
+  .tag { font-size: 11px; font-weight: 500; border-radius: 999px; padding: 1px 8px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+  .tag.missing { background: var(--missing-soft); color: var(--missing); }
+  .field.is-missing input, .field.is-missing select { border-color: var(--missing); }
+  ul.notes { margin: 0; padding-left: 18px; }
+  ul.notes li { margin-bottom: 4px; }
+  .box { border-radius: 8px; padding: 10px 12px; margin-top: 12px; font-size: 13px; }
+  .box.warn { background: var(--warn-soft); color: var(--warn); }
+  .box.info { background: var(--accent-soft); }
+  .box strong { display: block; margin-bottom: 4px; }
+  .preview { position: sticky; top: 24px; height: calc(100vh - 48px); display: flex; flex-direction: column; }
+  .preview .card { flex: 1; display: flex; flex-direction: column; margin: 0; }
+  .sheet { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: #fff; min-height: 480px; }
+  .sheet img { display: block; width: 100%; height: auto; transition: opacity .15s; }
+  .sheet img.stale { opacity: .6; }
+  .check { display: flex; gap: 8px; align-items: center; width: auto; font-size: 13px; color: var(--muted); }
+  .check input { width: auto; }
+  @media (max-width: 960px) {
+    main { grid-template-columns: 1fr; padding: 16px; }
+    .preview { position: static; height: auto; }
+    .sheet { min-height: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>RealEstate Forms</h1>
+  <span id="form-name">BCFSA Disclosure of Remuneration</span>
+</header>
+<main>
+  <section>
+    <div class="card">
+      <h2>1. Paste the offer information</h2>
+      <p class="sub">One fact per line, like <code>Buyer name - Mykyta and Raj</code>. Labels can be written loosely.</p>
+      <textarea id="text" spellcheck="false" placeholder="Buyer name - Mykyta and Raj&#10;He is PR&#10;Property address - #406-12160 80 Avenue Surrey BC&#10;Subject removal date - October 30 2026&#10;Completion - November 15 2026&#10;Possession - November 16 2026&#10;Offer open till - 11 pm tonight"></textarea>
+      <div class="row">
+        <button class="primary" id="parse">Read information</button>
+        <button class="link" id="example">Use an example</button>
+        <span class="muted">or press Ctrl+Enter</span>
+      </div>
+      <div id="unrecognized"></div>
+    </div>
+
+    <div id="status" class="status" hidden></div>
+
+    <div class="card">
+      <h2>2. Check the fields</h2>
+      <p class="sub">Filled from your text. Edit anything; the preview updates as you type.</p>
+      <div id="fields"></div>
+      <label class="check"><input type="checkbox" id="remember" checked> Remember my details (licensee, brokerage, commission, place) on this device</label>
+      <div id="warnings"></div>
+      <div id="extra"></div>
+    </div>
+  </section>
+
+  <section class="preview">
+    <div class="card">
+      <div class="row" style="margin: 0 0 12px; justify-content: space-between;">
+        <h2 style="margin:0">3. Preview</h2>
+        <button class="primary" id="download" disabled>Download PDF</button>
+      </div>
+      <div class="sheet"><img id="preview" alt="Preview of the filled form"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const EXAMPLE = `Offer information
+
+Buyer name - Mykyta and Raj
+He is PR
+Property address - #406-12160 80 Avenue Surrey BC
+
+Subject removal date - October 30 2026
+Completion - November 15 2026
+Possession - November 16 2026
+Offer open till - 11 pm tonight`;
+const REMEMBERED = ["licensee_name", "brokerage", "place", "agency", "commission", "commission_paid_by"];
+const STORE_KEY = "realestate.agent";
+
+const $ = (id) => document.getElementById(id);
+const state = { inputs: [], values: {}, source: {}, missing: new Set(), previewUrl: null };
+const today = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function post(path, body) {
+  const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, today: today() }) });
+  if (!res.ok) throw new Error(`${path}: ${res.status}`);
+  return res;
+}
+
+function loadRemembered() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch { return {}; }
+}
+function saveRemembered() {
+  try {
+    if (!$("remember").checked) { localStorage.removeItem(STORE_KEY); return; }
+    const saved = {};
+    for (const k of REMEMBERED) if (state.values[k]) saved[k] = state.values[k];
+    localStorage.setItem(STORE_KEY, JSON.stringify(saved));
+  } catch { /* storage unavailable: nothing to remember */ }
+}
+
+// Text from the paste becomes a select or date value the inputs understand.
+function normalize(key, value) {
+  const spec = state.inputs.find((i) => i.key === key);
+  if (spec && spec.choices.length) return /dual|both/i.test(value) ? "dual" : "one party";
+  return value;
+}
+
+function renderFields() {
+  const sections = {};
+  for (const i of state.inputs) (sections[i.section] ||= []).push(i);
+  $("fields").innerHTML = Object.entries(sections).map(([name, inputs]) => {
+    const optional = inputs.every((i) => !i.required);
+    const filled = inputs.some((i) => state.values[i.key]);
+    const body = inputs.map(renderField).join("");
+    return optional
+      ? `<details ${filled ? "open" : ""}><summary>${esc(name)} · optional</summary>${body}</details>`
+      : `<fieldset><legend>${esc(name)}</legend>${body}</fieldset>`;
+  }).join("");
+  for (const el of document.querySelectorAll("[data-key]")) {
+    el.addEventListener("input", () => {
+      state.values[el.dataset.key] = el.value;
+      state.source[el.dataset.key] = "edited";
+      saveRemembered();
+      scheduleRefresh();
+    });
+  }
+}
+
+function tagHtml(key) {
+  if (state.missing.has(key)) return `<span class="tag missing">missing</span>`;
+  return { text: `<span class="tag">from text</span>`, saved: `<span class="tag">saved</span>` }[state.source[key]] || "";
+}
+
+function renderField(i) {
+  const value = state.values[i.key] || "";
+  const missing = state.missing.has(i.key);
+  const tag = tagHtml(i.key);
+  let control;
+  if (i.choices.length) {
+    control = `<select id="f-${i.key}" data-key="${i.key}"><option value="">Not stated (one party)</option>${
+      i.choices.map((c) => `<option ${c === value ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>`;
+  } else {
+    control = `<input id="f-${i.key}" data-key="${i.key}" type="${i.kind === "date" ? "date" : "text"}" value="${esc(value)}" placeholder="${esc(i.hint)}">`;
+  }
+  return `<div class="field ${missing ? "is-missing" : ""}" id="w-${i.key}">
+    <label for="f-${i.key}"><span>${esc(i.label)}${i.required ? "" : ' <span class="muted">(optional)</span>'}</span>${tag}</label>
+    ${control}
+  </div>`;
+}
+
+// Update the missing markers without re-rendering, so typing keeps focus.
+function applyCheck(result) {
+  state.missing = new Set(result.missing.map((m) => m.key));
+  for (const i of state.inputs) {
+    const wrap = $(`w-${i.key}`);
+    if (!wrap) continue;
+    const missing = state.missing.has(i.key);
+    wrap.classList.toggle("is-missing", missing);
+    const tag = wrap.querySelector(".tag");
+    const html = tagHtml(i.key);
+    if (tag) tag.outerHTML = html; else wrap.querySelector("label").insertAdjacentHTML("beforeend", html);
+  }
+  const status = $("status");
+  status.hidden = false;
+  status.className = "status " + (result.missing.length ? "missing" : "ready");
+  status.textContent = result.missing.length
+    ? `${result.missing.length} item${result.missing.length > 1 ? "s" : ""} missing: ${result.missing.map((m) => m.label).join(", ")}`
+    : "Everything the form needs is filled in.";
+  $("warnings").innerHTML = result.warnings.length
+    ? `<div class="box warn"><strong>Worth checking</strong><ul class="notes">${result.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></div>` : "";
+  const extra = Object.entries(result.not_on_form);
+  $("extra").innerHTML = extra.length
+    ? `<div class="box info"><strong>Also found (not used by this form)</strong><ul class="notes">${extra.map(([k, v]) => `<li>${esc(k)}: ${esc(v)}</li>`).join("")}</ul></div>` : "";
+}
+
+let timer = null;
+function scheduleRefresh() {
+  clearTimeout(timer);
+  timer = setTimeout(refresh, 450);
+}
+
+let latest = 0;
+async function refresh() {
+  const run = ++latest;
+  const body = { values: state.values };
+  $("preview").classList.add("stale");
+  const [check, image] = await Promise.all([post("/api/check", body).then((r) => r.json()), post("/api/preview", body).then((r) => r.blob())]);
+  if (run !== latest) return; // a newer edit is already on its way
+  applyCheck(check);
+  if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+  state.previewUrl = URL.createObjectURL(image);
+  $("preview").src = state.previewUrl;
+  $("preview").classList.remove("stale");
+  $("download").disabled = false;
+}
+
+async function parse() {
+  const res = await post("/api/parse", { text: $("text").value }).then((r) => r.json());
+  for (const [k, v] of Object.entries(res.values)) {
+    state.values[k] = normalize(k, v);
+    state.source[k] = "text";
+  }
+  $("unrecognized").innerHTML = res.unrecognized.length
+    ? `<div class="box warn"><strong>Lines I couldn't match to a field</strong><ul class="notes">${res.unrecognized.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>` : "";
+  saveRemembered();
+  renderFields();
+  await refresh();
+}
+
+function downloadName() {
+  const address = (state.values.property_address || "").replace(/[^\w#,. -]+/g, "").trim();
+  return `Disclosure of Remuneration${address ? " - " + address : ""}.pdf`;
+}
+
+async function init() {
+  const spec = await fetch("/api/form").then((r) => r.json());
+  $("form-name").textContent = spec.name;
+  state.inputs = spec.inputs;
+  for (const [k, v] of Object.entries(loadRemembered())) {
+    state.values[k] = v;
+    state.source[k] = "saved";
+  }
+  $("parse").addEventListener("click", parse);
+  $("text").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) parse(); });
+  $("example").addEventListener("click", () => { $("text").value = EXAMPLE; parse(); });
+  $("remember").addEventListener("change", saveRemembered);
+  $("download").addEventListener("click", async () => {
+    const pdf = await post("/api/pdf", { values: state.values }).then((r) => r.blob());
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(pdf);
+    a.download = downloadName();
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  });
+  renderFields();
+  await refresh();
+}
+init();
+</script>
+</body>
+</html>

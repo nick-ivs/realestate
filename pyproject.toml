@@ -3,13 +3,14 @@ name = "realestate"
 version = "0.1.0"
 description = "Fill BC real estate forms from plain-text deal information, flagging anything missing."
 requires-python = ">=3.10"
-dependencies = ["pypdf>=4", "reportlab>=4"]
+dependencies = ["pypdf>=4", "reportlab>=4", "flask>=3", "pypdfium2>=4"]
 
 [project.optional-dependencies]
 test = ["pytest", "pdfplumber"]
 
 [project.scripts]
 realestate = "realestate.__main__:main"
+realestate-web = "realestate.web:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -19,4 +20,4 @@ build-backend = "setuptools.build_meta"
 include = ["realestate*"]
 
 [tool.setuptools.package-data]
-realestate = ["templates/*.pdf"]
+realestate = ["templates/*.pdf", "static/*"]

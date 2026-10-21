@@ -47,6 +47,15 @@ def fit_font_size(text: str, width: float) -> float | None:
     return None
 
 
+def overflowing(fields: list[Field], values: dict[str, str]) -> list[str]:
+    """Describe each value that is too long for its blank, even at the smallest size."""
+    return [
+        f"{f.label}: \"{values[f.name].strip()}\" is too long for the space on the form"
+        for f in fields
+        if values.get(f.name, "").strip() and fit_font_size(values[f.name].strip(), f.x1 - f.x0) is None
+    ]
+
+
 def fill(template: str, fields: list[Field], values: dict[str, str]) -> tuple[bytes, list[str]]:
     """Draw ``values`` into ``fields`` on ``template``.
 
