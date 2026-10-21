@@ -36,3 +36,8 @@ class FormResult:
     missing: list[Missing] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     not_on_form: dict[str, str] = field(default_factory=dict)
+    derived: dict[str, str] = field(default_factory=dict)  # values worked out from other info, e.g. place from the address
+
+    @property
+    def complete(self) -> bool:
+        return not self.missing

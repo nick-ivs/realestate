@@ -43,6 +43,7 @@ def check(deal: info_mod.DealInfo, today: date) -> dict:
         "missing": [asdict(m) for m in result.missing],
         "warnings": result.warnings + overflowing(result.fields, result.values),
         "not_on_form": result.not_on_form,
+        "derived": result.derived,
     }
 
 
@@ -73,8 +74,20 @@ def recheck():
     return jsonify(check(request_info(), request_today()))
 
 
+class Incomplete(Exception):
+    pass
+
+
+@app.errorhandler(Incomplete)
+def incomplete(error: Incomplete):
+    return jsonify(error="The form is missing information", missing=error.args[0]), 422
+
+
 def filled_pdf() -> bytes:
+    """The filled form; refused while anything required is missing, so no half-filled PDF goes out."""
     result = form.build(request_info(), request_today())
+    if not result.complete:
+        raise Incomplete([asdict(m) for m in result.missing])
     return fill(result.template, result.fields, result.values)[0]
 
 

@@ -23,10 +23,14 @@ python -m realestate.web
 Then open http://127.0.0.1:8000 in your browser.
 
 1. Paste the offer information and press **Read information** (or Ctrl+Enter).
-2. Check the fields it found. Missing ones are marked in red; edit anything you like.
-   Your own details (licensee, brokerage, commission, place) are remembered in
-   this browser, so you enter them once.
-3. The preview on the right updates as you type. **Download PDF** saves the filled form.
+   Labels are optional: an unlabelled address or "Mykyta and Raj" line is recognized,
+   and "Completion November 15 2026" works without a dash.
+2. Check the fields it found. Missing ones are marked in red; click one in the
+   right-hand list to jump to it. **Place** is the city from the property address
+   unless you type your own. Your own details (licensee, brokerage, commission)
+   are remembered in this browser, so you enter them once.
+3. The filled form appears on the right only once nothing is missing, and
+   **Download PDF** saves it. No half-filled PDF is ever produced.
 
 ## Command line
 
@@ -50,8 +54,8 @@ python -m realestate examples/offer.txt --profile examples/agent.txt -o filled.p
 ```
 
 In a terminal it asks for anything the form still needs. With `--no-prompt`
-(or when not run interactively) it leaves those blanks empty and lists them.
-It exits with status 1 while anything required is missing.
+(or when not run interactively) it lists what is missing, writes no PDF, and
+exits with status 1.
 
 The report also flags things worth a second look (first names only, no postal
 code, agency not stated, a value too long for its blank) and lists the offer
@@ -71,7 +75,7 @@ and "Label: value" works as well as "Label - value".
 | Commission (amount or method) | `Commission` |
 | Commission paid by | `Commission paid by` |
 | One party or dual agent | `Agency` (`one party` or `dual`; defaults to one party) |
-| Place | `Place` |
+| Place | `Place` (defaults to the city in the property address) |
 | Date | `Disclosure date` (defaults to today) |
 | Part C referral fees (optional) | `Referral fee`, `Referral fee paid by`, `Referred client to`, `Referred to client` |
 

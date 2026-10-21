@@ -29,11 +29,19 @@
     --ok: #6fd39b; --ok-soft: #173126; --input-bg: #14161c;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 Inter, system-ui, sans-serif; }
+  @media (min-width: 961px) {
+    /* Two panes that scroll separately: the fields on the left, the form on the right. */
+    body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    main { flex: 1; min-height: 0; width: 100%; }
+    main > section { overflow-y: auto; min-height: 0; padding-right: 4px; }
+  }
   header { padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   header h1 { margin: 0; font-size: 17px; font-weight: 600; }
   header span { color: var(--muted); }
   main { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 24px; padding: 24px; max-width: 1500px; margin: 0 auto; }
+  main > section > :last-child { margin-bottom: 0; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
   .card h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
   .card p.sub { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
@@ -63,17 +71,20 @@
   .box.warn { background: var(--warn-soft); color: var(--warn); }
   .box.info { background: var(--accent-soft); }
   .box strong { display: block; margin-bottom: 4px; }
-  .preview { position: sticky; top: 24px; height: calc(100vh - 48px); display: flex; flex-direction: column; }
-  .preview .card { flex: 1; display: flex; flex-direction: column; margin: 0; }
-  .sheet { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: #fff; min-height: 480px; }
+  .preview { display: flex; flex-direction: column; }
+  .preview .card { flex: 1; display: flex; flex-direction: column; min-height: 0; margin: 0; }
+  .sheet { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
   .sheet img { display: block; width: 100%; height: auto; transition: opacity .15s; }
   .sheet img.stale { opacity: .6; }
+  .waiting { flex: 1; border: 1px dashed var(--border); border-radius: 8px; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--muted); gap: 6px; min-height: 360px; }
+  .waiting h3 { margin: 0; font-size: 15px; color: var(--text); font-weight: 600; }
+  .waiting ul { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .waiting li button { font-size: 13px; padding: 5px 12px; border-color: var(--missing); color: var(--missing); background: var(--missing-soft); }
   .check { display: flex; gap: 8px; align-items: center; width: auto; font-size: 13px; color: var(--muted); }
   .check input { width: auto; }
   @media (max-width: 960px) {
     main { grid-template-columns: 1fr; padding: 16px; }
-    .preview { position: static; height: auto; }
-    .sheet { min-height: 0; }
+    .waiting { min-height: 200px; }
   }
 </style>
 </head>
@@ -86,7 +97,7 @@
   <section>
     <div class="card">
       <h2>1. Paste the offer information</h2>
-      <p class="sub">One fact per line, like <code>Buyer name - Mykyta and Raj</code>. Labels can be written loosely.</p>
+      <p class="sub">One fact per line. Labels are optional and can be written loosely: <code>Buyer name - Mykyta and Raj</code>, <code>Completion Nov 15 2026</code> or just the address.</p>
       <textarea id="text" spellcheck="false" placeholder="Buyer name - Mykyta and Raj&#10;He is PR&#10;Property address - #406-12160 80 Avenue Surrey BC&#10;Subject removal date - October 30 2026&#10;Completion - November 15 2026&#10;Possession - November 16 2026&#10;Offer open till - 11 pm tonight"></textarea>
       <div class="row">
         <button class="primary" id="parse">Read information</button>
@@ -100,9 +111,9 @@
 
     <div class="card">
       <h2>2. Check the fields</h2>
-      <p class="sub">Filled from your text. Edit anything; the preview updates as you type.</p>
+      <p class="sub">Filled from your text. Fix or complete anything here; the PDF is made once nothing is missing.</p>
       <div id="fields"></div>
-      <label class="check"><input type="checkbox" id="remember" checked> Remember my details (licensee, brokerage, commission, place) on this device</label>
+      <label class="check"><input type="checkbox" id="remember" checked> Remember my details (licensee, brokerage, commission) on this device</label>
       <div id="warnings"></div>
       <div id="extra"></div>
     </div>
@@ -114,7 +125,11 @@
         <h2 style="margin:0">3. Preview</h2>
         <button class="primary" id="download" disabled>Download PDF</button>
       </div>
-      <div class="sheet"><img id="preview" alt="Preview of the filled form"></div>
+      <div class="waiting" id="waiting">
+        <h3>Paste the offer information to start</h3>
+        <span>The filled form appears here once everything it needs is in.</span>
+      </div>
+      <div class="sheet" id="sheet" hidden><img id="preview" alt="Preview of the filled form"></div>
     </div>
   </section>
 </main>
@@ -130,7 +145,8 @@ Subject removal date - October 30 2026
 Completion - November 15 2026
 Possession - November 16 2026
 Offer open till - 11 pm tonight`;
-const REMEMBERED = ["licensee_name", "brokerage", "place", "agency", "commission", "commission_paid_by"];
+// Your own details, kept between offers. Everything else belongs to one offer.
+const REMEMBERED = ["licensee_name", "brokerage", "agency", "commission", "commission_paid_by"];
 const STORE_KEY = "realestate.agent";
 
 const $ = (id) => document.getElementById(id);
@@ -148,7 +164,10 @@ async function post(path, body) {
 }
 
 function loadRemembered() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch { return {}; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+    return Object.fromEntries(Object.entries(saved).filter(([k]) => REMEMBERED.includes(k)));
+  } catch { return {}; }
 }
 function saveRemembered() {
   try {
@@ -189,7 +208,11 @@ function renderFields() {
 
 function tagHtml(key) {
   if (state.missing.has(key)) return `<span class="tag missing">missing</span>`;
-  return { text: `<span class="tag">from text</span>`, saved: `<span class="tag">saved</span>` }[state.source[key]] || "";
+  return {
+    text: `<span class="tag">from text</span>`,
+    saved: `<span class="tag">saved</span>`,
+    address: `<span class="tag">from address</span>`,
+  }[state.source[key]] || "";
 }
 
 function renderField(i) {
@@ -209,8 +232,28 @@ function renderField(i) {
   </div>`;
 }
 
+// What the server should see. A place worked out from the address is left out,
+// so it is worked out again whenever the address changes.
+function payload() {
+  const values = { ...state.values };
+  if (state.source.place === "address") delete values.place;
+  return { values };
+}
+
+// Fill in values the server derived (the place from the address) unless the user typed their own.
+function applyDerived(derived) {
+  const ownPlace = state.values.place && state.source.place !== "address";
+  if (ownPlace) return;
+  const place = derived.place || "";
+  state.values.place = place;
+  state.source.place = place ? "address" : undefined;
+  const input = $("f-place");
+  if (input && input.value !== place) input.value = place;
+}
+
 // Update the missing markers without re-rendering, so typing keeps focus.
 function applyCheck(result) {
+  applyDerived(result.derived);
   state.missing = new Set(result.missing.map((m) => m.key));
   for (const i of state.inputs) {
     const wrap = $(`w-${i.key}`);
@@ -240,23 +283,54 @@ function scheduleRefresh() {
   timer = setTimeout(refresh, 450);
 }
 
+function showWaiting(missing) {
+  const started = Object.values(state.values).some(Boolean) && !Object.keys(state.source).every((k) => state.source[k] === "saved");
+  $("sheet").hidden = true;
+  $("waiting").hidden = false;
+  $("download").disabled = true;
+  $("waiting").innerHTML = started
+    ? `<h3>Still needed before the PDF is made</h3>
+       <span>Click an item to fill it in.</span>
+       <ul>${missing.map((m) => `<li><button data-focus="${m.key}">${esc(m.label)}</button></li>`).join("")}</ul>`
+    : `<h3>Paste the offer information to start</h3>
+       <span>The filled form appears here once everything it needs is in.</span>`;
+  for (const b of $("waiting").querySelectorAll("[data-focus]")) {
+    b.addEventListener("click", () => {
+      const input = $(`f-${b.dataset.focus}`);
+      input.closest("details")?.setAttribute("open", "");
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+      input.focus({ preventScroll: true });
+    });
+  }
+}
+
 let latest = 0;
 async function refresh() {
   const run = ++latest;
-  const body = { values: state.values };
-  $("preview").classList.add("stale");
-  const [check, image] = await Promise.all([post("/api/check", body).then((r) => r.json()), post("/api/preview", body).then((r) => r.blob())]);
+  const body = payload();
+  const check = await post("/api/check", body).then((r) => r.json());
   if (run !== latest) return; // a newer edit is already on its way
   applyCheck(check);
+  if (check.missing.length) return showWaiting(check.missing);
+
+  $("preview").classList.add("stale");
+  const image = await post("/api/preview", body).then((r) => r.blob());
+  if (run !== latest) return;
   if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
   state.previewUrl = URL.createObjectURL(image);
   $("preview").src = state.previewUrl;
   $("preview").classList.remove("stale");
+  $("waiting").hidden = true;
+  $("sheet").hidden = false;
   $("download").disabled = false;
 }
 
 async function parse() {
   const res = await post("/api/parse", { text: $("text").value }).then((r) => r.json());
+  // A new paste is a new offer: keep only your own details from before.
+  for (const k of Object.keys(state.values)) {
+    if (!REMEMBERED.includes(k)) { delete state.values[k]; delete state.source[k]; }
+  }
   for (const [k, v] of Object.entries(res.values)) {
     state.values[k] = normalize(k, v);
     state.source[k] = "text";
@@ -286,7 +360,7 @@ async function init() {
   $("example").addEventListener("click", () => { $("text").value = EXAMPLE; parse(); });
   $("remember").addEventListener("change", saveRemembered);
   $("download").addEventListener("click", async () => {
-    const pdf = await post("/api/pdf", { values: state.values }).then((r) => r.blob());
+    const pdf = await post("/api/pdf", payload()).then((r) => r.blob());
     const a = document.createElement("a");
     a.href = URL.createObjectURL(pdf);
     a.download = downloadName();

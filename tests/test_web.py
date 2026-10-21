@@ -32,7 +32,8 @@ def test_parse_returns_fields_and_what_is_missing():
     res = client().post("/api/parse", json={"text": OFFER, "today": "2026-10-21"}).json
     assert res["values"]["buyer_names"] == "Mykyta and Raj"
     assert res["values"]["disclosure_date"] == "2026-10-22"  # ready for a date picker
-    assert [m["key"] for m in res["missing"]] == ["licensee_name", "brokerage", "commission", "commission_paid_by", "place"]
+    assert [m["key"] for m in res["missing"]] == ["licensee_name", "brokerage", "commission", "commission_paid_by"]
+    assert res["derived"] == {"place": "Surrey"}
     assert res["not_on_form"]["offer expiry"] == "October 21, 2026, 11:00 PM"
     assert res["unrecognized"] == []
 
@@ -51,15 +52,25 @@ def test_check_reports_values_too_long_for_the_form():
     assert any("too long" in w for w in res["warnings"])
 
 
+COMPLETE = {"buyer_names": "Mykyta Hryb and Raj Sharma", "property_address": "#406-12160 80 Avenue Surrey BC", **AGENT}
+
+
+def test_no_pdf_or_preview_while_information_is_missing():
+    for path in ("/api/pdf", "/api/preview"):
+        res = client().post(path, json={"values": AGENT})
+        assert res.status_code == 422
+        assert [m["key"] for m in res.json["missing"]] == ["buyer_names", "property_address"]
+
+
 def test_pdf_is_returned_with_a_useful_name():
-    res = client().post("/api/pdf?download=1", json={"values": {"property_address": "#406-12160 80 Avenue Surrey BC", **AGENT}})
+    res = client().post("/api/pdf?download=1", json={"values": COMPLETE})
     assert res.mimetype == "application/pdf"
     assert res.data.startswith(b"%PDF")
     assert "Disclosure of Remuneration - #406-12160 80 Avenue Surrey BC.pdf" in res.headers["Content-Disposition"]
 
 
 def test_preview_is_an_image_of_the_filled_page():
-    res = client().post("/api/preview", json={"values": AGENT})
+    res = client().post("/api/preview", json={"values": COMPLETE})
     assert res.mimetype == "image/png"
     assert res.data.startswith(b"\x89PNG")
 

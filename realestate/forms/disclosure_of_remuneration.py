@@ -6,7 +6,7 @@ import re
 from datetime import date
 from pathlib import Path
 
-from ..info import DealInfo, format_date, parse_date, parse_datetime
+from ..info import DealInfo, city_from_address, format_date, parse_date, parse_datetime
 from ..pdf import Field
 from . import FormResult, Input, Missing
 
@@ -52,7 +52,7 @@ INPUTS = [
           "unit, street, city, e.g. \"#406 - 12160 80 Avenue, Surrey, BC\""),
     Input("licensee_name", "Licensee name", "Your details", "your name as it appears on your BCFSA licence"),
     Input("brokerage", "Brokerage", "Your details", "your related brokerage, e.g. \"Sample Realty Ltd.\""),
-    Input("place", "Place of disclosure", "Your details", "city where the form is presented, e.g. \"Surrey, BC\""),
+    Input("place", "Place", "Client & property", "city where the form is signed; taken from the property address"),
     Input("agency", "Agency", "Commission", "acting for one party, or as dual agent", required=False,
           choices=("one party", "dual")),
     Input("commission", "Commission", "Commission",
@@ -164,8 +164,12 @@ def build(info: DealInfo, today: date) -> FormResult:
         if not (info.get("referred_client_to") or info.get("referred_to_client")):
             missing("referred_client_to")
 
-    # Part D
-    place = need("place")
+    # Part D: the place defaults to the property's city
+    place = info.get("place")
+    if place is None and address and (city := city_from_address(address)):
+        place = result.derived["place"] = city
+    if place is None:
+        missing("place")
     when = today
     if raw := info.get("disclosure_date"):
         parsed = parse_date(raw, today)

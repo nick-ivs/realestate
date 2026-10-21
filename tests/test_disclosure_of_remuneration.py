@@ -31,7 +31,8 @@ def build(text):
 
 def test_offer_alone_reports_the_licensee_details_as_missing():
     result = build(OFFER)
-    assert [m.key for m in result.missing] == ["licensee_name", "brokerage", "commission", "commission_paid_by", "place"]
+    assert [m.key for m in result.missing] == ["licensee_name", "brokerage", "commission", "commission_paid_by"]
+    assert result.derived == {"place": "Surrey"}
     assert result.values["client_name"] == "Mykyta Hryb and Raj Sharma"
     assert result.values["d_date"] == "October 21, 2026"
 
@@ -87,3 +88,10 @@ def test_too_long_values_are_reported():
     result = build(OFFER + PROFILE.replace("Sample Realty Ltd.", "A Very Long Brokerage Name That Cannot Possibly Fit Here Ltd."))
     _, problems = fill(result.template, result.fields, result.values)
     assert any("too long" in p for p in problems)
+
+
+def test_place_comes_from_the_property_city_unless_given():
+    assert build(OFFER).values["d_place"] == "Surrey"
+    assert build(OFFER + "Place - Vancouver, BC").values["d_place"] == "Vancouver, BC"
+    no_city = build("Buyer name - Jane Doe\nProperty address - 12 Main St")
+    assert "place" in [m.key for m in no_city.missing]

@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--profile", help="text file with your licensee details (name, brokerage, place, commission)")
     parser.add_argument("-o", "--output", default="filled.pdf", help="where to write the filled PDF (default: filled.pdf)")
     parser.add_argument("--date", type=date.fromisoformat, default=date.today(), help="today's date, YYYY-MM-DD")
-    parser.add_argument("--no-prompt", action="store_true", help="never ask for missing information; leave those blanks empty")
+    parser.add_argument("--no-prompt", action="store_true", help="never ask for missing information; just list it")
     args = parser.parse_args(argv)
 
     deal = info_mod.parse_file(args.info)
@@ -45,15 +45,18 @@ def main(argv: list[str] | None = None) -> int:
         deal = ask_for_missing(deal, args.date)
     result = form.build(deal, args.date)
 
-    pdf, problems = fill(result.template, result.fields, result.values)
-    with open(args.output, "wb") as f:
-        f.write(pdf)
-
-    print(f"Wrote {args.output}  ({result.name})")
+    problems: list[str] = []
     if result.missing:
-        print("\nMissing information (left blank on the form):")
+        print(f"Not written: {result.name} is missing information.")
         for m in result.missing:
             print(f"  - {m.label}: {m.hint}")
+    else:
+        pdf, problems = fill(result.template, result.fields, result.values)
+        with open(args.output, "wb") as f:
+            f.write(pdf)
+        print(f"Wrote {args.output}  ({result.name})")
+    for key, value in result.derived.items():
+        print(f"\n{form.INPUT_BY_KEY[key].label} taken from the property address: {value}")
     for title, items in (("Check", result.warnings + problems), ("Unrecognized lines", deal.unrecognized)):
         if items:
             print(f"\n{title}:")

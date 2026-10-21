@@ -80,16 +80,93 @@ def detect_residency(text: str) -> str | None:
     return None
 
 
+# BC municipalities, plus neighbourhoods people write in place of their city.
+BC_CITIES = [
+    "Abbotsford", "Anmore", "Armstrong", "Belcarra", "Bowen Island", "Burnaby", "Campbell River", "Castlegar",
+    "Central Saanich", "Chilliwack", "Coldstream", "Colwood", "Comox", "Coquitlam", "Courtenay", "Cranbrook",
+    "Dawson Creek", "Delta", "Duncan", "Esquimalt", "Fernie", "Fort St. John", "Gibsons", "Golden", "Harrison Hot Springs",
+    "Hope", "Kamloops", "Kelowna", "Kent", "Kimberley", "Kitimat", "Ladysmith", "Lake Country", "Langford",
+    "Langley", "Lions Bay", "Maple Ridge", "Merritt", "Metchosin", "Mission", "Nanaimo", "Nelson", "New Westminster",
+    "North Cowichan", "North Saanich", "North Vancouver", "Oak Bay", "Oliver", "Osoyoos", "Parksville", "Peachland",
+    "Penticton", "Pitt Meadows", "Port Alberni", "Port Coquitlam", "Port Moody", "Powell River", "Prince George",
+    "Prince Rupert", "Qualicum Beach", "Quesnel", "Revelstoke", "Richmond", "Saanich", "Salmon Arm", "Sechelt",
+    "Sidney", "Sooke", "Squamish", "Summerland", "Surrey", "Terrace", "Tofino", "Trail", "Ucluelet", "Vancouver",
+    "Vernon", "Victoria", "View Royal", "West Kelowna", "West Vancouver", "Whistler", "White Rock", "Williams Lake",
+]
+NEIGHBOURHOODS = {
+    "South Surrey": "Surrey", "Cloverdale": "Surrey", "Fleetwood": "Surrey", "Guildford": "Surrey", "Whalley": "Surrey",
+    "Newton": "Surrey", "North Delta": "Delta", "Ladner": "Delta", "Tsawwassen": "Delta", "Walnut Grove": "Langley",
+    "Willoughby": "Langley", "Aldergrove": "Langley", "Murrayville": "Langley", "Burke Mountain": "Coquitlam",
+    "Steveston": "Richmond", "Yaletown": "Vancouver", "Kitsilano": "Vancouver",
+}
+STREET_WORDS = (r"street|st|avenue|ave|road|rd|drive|dr|way|boulevard|blvd|crescent|cres|place|pl|court|ct|lane|ln|"
+                r"highway|hwy|parkway|pkwy|terrace|close|gate|row|mews|walk|trail|square|sq")
+_PLACE_NAMES = sorted([*BC_CITIES, *NEIGHBOURHOODS], key=len, reverse=True)
+
+
+def city_from_address(address: str) -> str | None:
+    """The city in an address, e.g. "#406-12160 80 Avenue Surrey BC" -> "Surrey".
+
+    The last place name wins, so a street named after another city ("Victoria
+    Drive, Vancouver") still gives the right one, and a name followed by a
+    street word ("Surrey Road") is not taken as the city.
+    """
+    found: list[tuple[int, int, str]] = []
+    for name in _PLACE_NAMES:  # longest first, so "North Vancouver" beats "Vancouver"
+        pattern = rf"(?<![\w.]){re.escape(name)}(?!\w)(?!\s*,?\s*(?:{STREET_WORDS})\b\.?)"
+        for m in re.finditer(pattern, address, re.I):
+            if not any(start <= m.start() < end for start, end, _ in found):
+                found.append((m.start(), m.end(), name))
+    if not found:
+        return None
+    name = max(found)[2]
+    return NEIGHBOURHOODS.get(name, name)
+
+
+ADDRESS_RE = re.compile(rf"^#?\s*\d+[a-z]?\s*[-–]?\s*\d*\s+.*\b({STREET_WORDS})\b", re.I)
+
+
+def looks_like_address(line: str) -> bool:
+    return bool(ADDRESS_RE.search(line)) or (bool(re.match(r"#?\s*\d", line)) and city_from_address(line) is not None)
+
+
+MONTHS = r"jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec"
+VALUE_START = re.compile(rf"^(\d|#|\$|({MONTHS})[a-z]*\.?$|today|tonight|tomorrow|noon)", re.I)
+
+
+def split_unseparated(line: str) -> tuple[str, str] | None:
+    """Read "Completion November 15 2026" as label "Completion" and its value.
+
+    The label is the leading words before the value starts (a number, month or
+    "tonight"), shortened from the end until it names a known field.
+    """
+    words = line.split()
+    end = next((i for i, w in enumerate(words) if VALUE_START.match(w)), len(words))
+    for n in range(min(end, 5), 0, -1):
+        if n < len(words) and (key := match_key(" ".join(words[:n]))):
+            return key, " ".join(words[n:])
+    return None
+
+
+NAMES_RE = re.compile(r"^[A-Z][\w'’-]*(\s+[A-Z][\w'’-]*)*(\s*(,|&|\band\b)\s*[A-Z][\w'’-]*(\s+[A-Z][\w'’-]*)*)+$")
+
+
+def looks_like_names(line: str) -> bool:
+    """ "Mykyta and Raj" or "Jane Doe & John Lee": capitalized names joined by and/&/commas."""
+    return bool(NAMES_RE.match(line)) and city_from_address(line) is None
+
+
 def is_heading(line: str) -> bool:
-    """A short label-only line such as "Offer information"."""
-    return line.endswith(":") or (len(line.split()) <= 3 and not re.search(r"\d", line))
+    """A label-only line such as "Offer information" or "Details:"."""
+    return line.endswith(":") or bool(
+        re.fullmatch(r"((new |the )?(offer|deal|buyer|property|client|purchase)s?)?\s*(info(rmation)?|details|summary|notes?)?", line, re.I))
 
 
 def parse(text: str) -> DealInfo:
     info = DealInfo()
     for raw in text.splitlines():
         line = raw.strip().lstrip("*•").strip()
-        if not line or line.startswith("#"):
+        if not line or re.match(r"#(?!\s*\d)", line):  # a comment, not "#406-..."
             continue
         parts = SEPARATOR.split(line, maxsplit=1)
         key = match_key(parts[0]) if len(parts) == 2 else None
@@ -97,8 +174,14 @@ def parse(text: str) -> DealInfo:
             info.values[key] = parts[1].strip()
         elif status := detect_residency(line):
             info.values["residency"] = status
+        elif "property_address" not in info.values and looks_like_address(line):
+            info.values["property_address"] = line
+        elif found := split_unseparated(line):
+            info.values.setdefault(found[0], found[1])
         elif is_heading(line):
             continue
+        elif "buyer_names" not in info.values and looks_like_names(line):
+            info.values["buyer_names"] = line
         else:
             info.unrecognized.append(line)
     return info
