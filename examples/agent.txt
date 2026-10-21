@@ -1,0 +1,7 @@
+# Sample licensee profile: replace every value with your own details.
+Licensee name - Sample Licensee
+Brokerage - Sample Realty Ltd.
+Agency - one party (buyer)
+Commission - 3.22% on the first $100,000 and 1.15% on the balance
+Commission paid by - the listing brokerage
+Place - Surrey, BC
